@@ -233,15 +233,27 @@ async function generate(){
   const domEl = dominantElement(upper, lower, moving);
 
   // 5세트 랜덤 생성
+  // 5세트: 해시(bytes) 기반의 결정론적 생성(주역 정보 일부를 오프셋에 사용)
   const allSets = [];
-  for (let setIdx = 0; setIdx < 5; setIdx++) {
-    const nums = [];
-    while (nums.length < 5) {
-      const n = Math.floor(Math.random() * 45) + 1; // 1~45 랜덤
-      if (!nums.includes(n)) nums.push(n);
-    }
-    nums.sort((a, b) => a - b);
+  const moveCount = moving.reduce((s,v)=>s + (v?1:0), 0);
+  for (let setIdx = 0; setIdx < 5; setIdx++){
+    const offset = setIdx * 7 + moveCount;
+    const nums = pickUniqueNumbers(bytes, 5, offset);
     allSets.push(nums);
+  }
+
+  // 각 세트에 보너스 번호 1개 추가 (본래 번호들과 중복되지 않게 선택)
+  const bonuses = [];
+  for (let setIdx = 0; setIdx < 5; setIdx++){
+    let offsetB = 200 + setIdx * 3 + (bytes[(setIdx + 10) % bytes.length] || 0);
+    let b = pickUniqueNumbers(bytes, 1, offsetB)[0];
+    let guard = 0;
+    while (allSets[setIdx].includes(b) && guard < 200){
+      offsetB += 1;
+      b = pickUniqueNumbers(bytes, 1, offsetB)[0];
+      guard++;
+    }
+    bonuses.push(b);
   }
 
   // UI 표시
@@ -269,6 +281,20 @@ async function generate(){
     ballsDiv.className = "nums";
     setBall(ballsDiv, nums, "");
     setDiv.appendChild(ballsDiv);
+
+    // 보너스 표시 (작은 공)
+    const bonusRow = document.createElement("div");
+    bonusRow.style.cssText = "margin-top:8px; display:flex; gap:8px; align-items:center;";
+    const bonusLabel = document.createElement("div");
+    bonusLabel.style.cssText = "font-size:13px; color:#6b7280; font-weight:600;";
+    bonusLabel.textContent = "보너스";
+    const bonusBall = document.createElement("div");
+    bonusBall.className = "ball small";
+    bonusBall.setAttribute("data-range", getBallRange(bonuses[idx]));
+    bonusBall.textContent = bonuses[idx];
+    bonusRow.appendChild(bonusLabel);
+    bonusRow.appendChild(bonusBall);
+    setDiv.appendChild(bonusRow);
     
     setsContainer.appendChild(setDiv);
   });
@@ -276,6 +302,16 @@ async function generate(){
   renderHex(document.getElementById("hexOriginal"), lines, moving);
   // 지괘는 "변효" 정보를 그대로 보여주면 혼동되니, 라벨만 고정 표시
   renderHex(document.getElementById("hexChanged"), changed, moving);
+
+  // 변효 설명을 본괘/변화괘 아래에 간략히 표시
+  const origNote = document.getElementById("hexOriginalNote");
+  const changedNote = document.getElementById("hexChangedNote");
+  if (origNote) {
+    origNote.textContent = "변효(變爻)는 현재 그 효에서 에너지가 변화 중임을 뜻합니다. 본괘는 지금의 상태를 보여주며, 변효는 그 자리에서 일시적 혹은 진행 중인 변화를 나타냅니다.";
+  }
+  if (changedNote) {
+    changedNote.textContent = "변화괘는 변효가 반전된 모습을 보여줍니다. 변효가 있는 효는 향후의 전환점을 가리키며, 변화괘는 그 변화가 반영된 가능성의 방향을 제시합니다.";
+  }
 
   const mainNums = allSets[0]; // 첫 번째 세트로 설명 표시
   const reasons = buildReasons(mainNums, { upper, lower, domEl, moving, lines });
