@@ -264,7 +264,7 @@ function buildReasons(mainNums, ctx){
         </div>
         <div style="color:#374151;font-size:14px;">${relationText}</div>
         <div style="color:#6b7280;font-size:13px;">${moveNote}</div>
-        <div style="color:#475569;font-size:13px;font-style:italic;">이유: ${n} % 5 = ${r} → ${el} — ${reasonShort}</div>
+        <div class="reasonShort">이유: ${n} % 5 = ${r} → ${el} — ${reasonShort}</div>
       </div>
     `;
   });

@@ -22,17 +22,25 @@ h1 {
   font-size: 44px;
   font-weight: 800;
   margin: 0 0 12px;
-  background: linear-gradient(120deg, #667eea, #764ba2);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #ffffff;
   letter-spacing: 0.2px;
   line-height: 1.05;
-  text-shadow: 0 6px 20px rgba(103, 71, 255, 0.08);
+  text-shadow: 0 8px 30px rgba(2,6,23,0.45);
 }
 
 @media (max-width: 520px) {
   h1 { font-size: 28px; line-height: 1.1; }
+}
+
+/* 간단한 이유(한줄) 스타일: 눈에 잘 띄도록 색상과 여백 조정 */
+.reasonShort {
+  color: #0b1220;
+  background: rgba(255,255,255,0.9);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-style: italic;
+  margin-top: 6px;
 }
 p { 
   line-height: 1.6;
