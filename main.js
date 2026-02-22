@@ -257,7 +257,7 @@ function buildReasons(mainNums, ctx){
     const posIndex = ((n - 1) % 5) + 1; // 내부 계산만 사용
     const ordinals = ["첫째", "둘째", "셋째", "넷째", "다섯째"];
     const positionDesc = ordinals[(posIndex - 1) % ordinals.length];
-    const poetic = `${positionDesc} 자리에 놓인 숫자라, 전통적으로 이 자리는 ${el}의 성질을 띱니다.`.replace('띱니다', '닙니다');
+    const poetic = `${positionDesc} 자리에 놓인 숫자라, 전통적으로 이 자리는 ${el}의 성질을 지닙니다.`;
     return `
       <div style="display:flex;flex-direction:column;gap:8px;">
         <div style="display:flex;align-items:center;gap:12px;">
