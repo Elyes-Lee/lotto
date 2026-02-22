@@ -291,7 +291,14 @@ async function generate(){
   if (birthTime) usp.set("t", birthTime); else usp.delete("t");
   history.replaceState({}, "", `${location.pathname}?${usp.toString()}`);
 
-  const bytes = await sha256Bytes(seed);
+  // 각 버튼 클릭마다 다른 결과를 만들기 위해 세션에 nonce(카운터)를 사용합니다.
+  // 이 nonce를 seed에 합쳐 해시를 만들면, 같은 입력값이라도 버튼을 누를 때마다
+  // 숫자/순서가 바뀝니다.
+  let nonce = 0;
+  try { nonce = Number(sessionStorage.getItem('generateNonce') || '0'); } catch(e) { nonce = 0; }
+  nonce = (isNaN(nonce) ? 0 : nonce) + 1;
+  try { sessionStorage.setItem('generateNonce', String(nonce)); } catch(e) {}
+  const bytes = await sha256Bytes(seed + '|' + nonce);
   const { lines, moving, changed } = deriveLines(bytes);
 
   const lower = trigramFromLines([lines[0], lines[1], lines[2]]);
