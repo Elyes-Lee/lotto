@@ -171,27 +171,44 @@ function buildReasons(mainNums, ctx){
     const linePos = (n % 6) === 0 ? 6 : (n % 6); // 1~6
     const isMoving = !!moving[linePos-1];
     const yinYang = lines[linePos-1] === 1 ? "양(—)" : "음(– –)";
+    const trigram = linePos <= 3 ? lower : upper; // 1~3 하괘, 4~6 상괘
+    const trigramLabel = trigram ? `${trigram.symbol} ${trigram.name}` : "-";
 
-    // 상생/상극 관계를 스토리로 변환
+    // 상생/상극 관계를 스토리로 변환 (더 명확한 이유 제공)
     const gen = GENERATES[domEl];
     const over = OVERCOMES[domEl];
 
-    let story = "";
+    let relationLabel = "별개의 성질";
+    let relationText = `이 숫자는 ${domEl}과 특별한 직접 연관이 없습니다.`;
     if (el === domEl) {
-      story = `🎯 당신의 핵심 에너지 (${domEl}) — 가장 강력하게 공명하는 숫자입니다. 이 숫자는 당신의 본질적인 성질과 가장 깊이 연결되어 있습니다.`;
+      relationLabel = "핵심 에너지";
+      relationText = `이 숫자는 당신의 중심 에너지(${domEl})와 동일합니다 — 본질적으로 가장 강하게 공명합니다.`;
     } else if (el === gen) {
-      story = `🌱 흐름의 자연스러움 (${domEl}→${gen}) — 당신의 중심 에너지가 자연스럽게 발전하고 커지는 방향입니다. 이 숫자와 함께하면 좋은 일들이 차례차례 펼쳐집니다.`;
+      relationLabel = "상생(지원)";
+      relationText = `${domEl} → ${gen} 관계입니다. 이 숫자는 당신의 중심 에너지가 자연스럽게 성장하거나 돕는 역할을 합니다.`;
     } else if (el === over) {
-      story = `⚖️ 균형과 조화 (${domEl}⊣${over}) — 당신의 에너지를 견제하는 힘입니다. 나쁜 것만은 아닙니다. 이 숫자는 당신을 중심에 머물게 하고 안정시킵니다.`;
-    } else {
-      story = `🌀 우주의 배치 — 당신의 핵심 에너지와는 다른 방향의 숫자입니다. 새로운 관점을 제시하고, 예상치 못한 기회를 가져다줍니다.`;
+      relationLabel = "상극(제약)";
+      relationText = `${domEl} ⊣ ${over} 관계입니다. 이 숫자는 균형을 잡아주거나 제약을 주는 역할이므로, 과도한 동력은 억제될 수 있습니다.`;
     }
 
     const moveNote = isMoving
-      ? `[ ⚡ 변화의 포인트 ] ${linePos}효가 변하고 있습니다 → 이 숫자 영역에서 당신의 에너지가 현재 변성 중입니다.`
-      : `[ 🌿 안정의 자리 ] ${linePos}효는 고정되어 있습니다 → 이 에너지는 당신의 확고한 기초를 이루고 있습니다.`;
+      ? `⚡ 변화 포인트: ${linePos}효가 변하고 있습니다 — 이 자리에서 에너지가 전환 중입니다.`
+      : `🌿 안정의 자리: ${linePos}효는 고정되어 있습니다 — 이 부분은 현재 안정적입니다.`;
 
-    return `${i+1}번: <strong>${n}</strong> (${el})\n${story}\n${moveNote}`;
+    // 풍부한 HTML 반환 — generate()에서 그대로 innerHTML로 렌더링됩니다.
+    return `
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <strong style="font-size:16px;color:#111;">${i+1}번: ${n}</strong>
+          <span class="pill">요소: ${el}</span>
+          <span class="pill">${yinYang}</span>
+          <span class="pill">괘: ${trigramLabel}</span>
+          <span class="movingTag" style="visibility:visible;">${isMoving ? '변효' : '고정'}</span>
+        </div>
+        <div style="color:#374151;font-size:14px;">${relationText}</div>
+        <div style="color:#6b7280;font-size:13px;">${moveNote}</div>
+      </div>
+    `;
   });
 }
 
@@ -317,12 +334,12 @@ async function generate(){
   const reasons = buildReasons(mainNums, { upper, lower, domEl, moving, lines });
   const ul = document.getElementById("reasons");
   ul.innerHTML = "";
-  reasons.forEach(r=>{
-    const li = document.createElement("li");
-    // HTML 포맷팅: 줄 바꿈과 강조 처리
-    li.innerHTML = r.replace(/\n/g, "<br>").replace(/\[ ([^\]]+) \]/g, "<strong style='color: #6366f1;'>[ $1 ]</strong>");
-    ul.appendChild(li);
-  });
+      reasons.forEach(r=>{
+        const li = document.createElement("li");
+        // buildReasons가 HTML을 반환하므로 그대로 삽입
+        li.innerHTML = r;
+        ul.appendChild(li);
+      });
 }
 
 // 드롭다운 초기화
