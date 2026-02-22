@@ -149,7 +149,24 @@ function getBallRange(n){
   return "5";
 }
 
-function setBall(container, nums, cls){
+function applyBallInteractivity(el, candidates){
+  if (!candidates || !candidates.length) return;
+  el.dataset.candidates = JSON.stringify(candidates);
+  el.dataset.candIndex = "0";
+  el.style.cursor = "pointer";
+  el.addEventListener("click", (e)=>{
+    e.stopPropagation();
+    const arr = JSON.parse(el.dataset.candidates || "[]");
+    let idx = parseInt(el.dataset.candIndex || "0", 10);
+    idx = (idx + 1) % arr.length;
+    el.dataset.candIndex = String(idx);
+    const v = arr[idx];
+    el.textContent = v;
+    el.setAttribute("data-range", getBallRange(v));
+  });
+}
+
+function setBall(container, nums, cls, bytes){
   container.innerHTML = "";
   nums.forEach((n, idx)=>{
     const d = document.createElement("div");
@@ -157,8 +174,40 @@ function setBall(container, nums, cls){
     d.setAttribute("data-range", getBallRange(n));
     d.style.animationDelay = (idx * 50) + "ms";
     d.textContent = n;
+
+    // 후보 생성: 같은 오행(요소)을 우선적으로 모아 순환 가능하도록 함
+    const candidates = buildAlternatives(bytes, n, 6);
+    applyBallInteractivity(d, candidates.length ? [n].concat(candidates) : [n]);
+
     container.appendChild(d);
   });
+}
+
+function buildAlternatives(bytes, baseNum, maxCount){
+  const out = [];
+  const baseEl = numberElement(baseNum);
+  let offset = 13;
+  let tries = 0;
+  while (out.length < maxCount && tries < 200){
+    const candidates = pickUniqueNumbers(bytes, 10, offset);
+    for (const c of candidates){
+      if (c === baseNum) continue;
+      if (numberElement(c) === baseEl && !out.includes(c)) out.push(c);
+      if (out.length >= maxCount) break;
+    }
+    offset += 7;
+    tries++;
+  }
+  // 폴백: 같은 오행이 충분치 않으면 다른 숫자 추가
+  offset = 999;
+  tries = 0;
+  while (out.length < maxCount && tries < 100){
+    const c = pickUniqueNumbers(bytes, 1, offset)[0];
+    if (c !== baseNum && !out.includes(c)) out.push(c);
+    offset++;
+    tries++;
+  }
+  return out;
 }
 
 function buildReasons(mainNums, ctx){
@@ -285,18 +334,20 @@ async function generate(){
   // 5세트 표시
   const setsContainer = document.getElementById("allLottoSets");
   setsContainer.innerHTML = "";
-  allSets.forEach((nums, idx) => {
+      allSets.forEach((nums, idx) => {
     const setDiv = document.createElement("div");
     setDiv.style.cssText = "padding: 12px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.2);";
     
     const textDiv = document.createElement("div");
     textDiv.style.cssText = "font-weight: 700; font-size: 18px; color: #1f2937; margin-bottom: 10px;";
-    textDiv.textContent = `${idx + 1}번: ${nums.join(" - ")}`;
+        textDiv.textContent = `${idx + 1}번: ${nums.join(" - ")}`;
+        // 클릭하면 순서를 토글(오름/내림)
+        textDiv.style.cursor = 'pointer';
     setDiv.appendChild(textDiv);
     
     const ballsDiv = document.createElement("div");
     ballsDiv.className = "nums";
-    setBall(ballsDiv, nums, "");
+        setBall(ballsDiv, nums, "", bytes);
     setDiv.appendChild(ballsDiv);
 
     // 보너스 표시 (작은 공)
@@ -313,7 +364,14 @@ async function generate(){
     bonusRow.appendChild(bonusBall);
     setDiv.appendChild(bonusRow);
     
-    setsContainer.appendChild(setDiv);
+        // 토글 함수: 현재 표시 순서를 반전
+        textDiv.addEventListener('click', ()=>{
+          const current = Array.from(ballsDiv.querySelectorAll('.ball')).map(b=>parseInt(b.textContent,10));
+          const reversed = current.slice().reverse();
+          setBall(ballsDiv, reversed, "", bytes);
+        });
+
+        setsContainer.appendChild(setDiv);
   });
 
   renderHex(document.getElementById("hexOriginal"), lines, moving);
