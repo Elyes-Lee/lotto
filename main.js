@@ -245,14 +245,14 @@ function buildReasons(mainNums, ctx){
       : `🌿 안정의 자리: ${linePos}효는 고정되어 있습니다 — 이 부분은 현재 안정적입니다.`;
 
     // 풍부한 HTML 반환 — generate()에서 그대로 innerHTML로 렌더링됩니다.
-    // 간결한 이유 한 줄 추가: 왜 이 숫자가 해당 해석과 연결되는지를 보여줌
-    const r = n % 5;
+    // 간결한 이유 한 줄 추가: 숫자와 오행의 연결을 서술적으로 표현
     let reasonShort = '';
-    if (el === domEl) reasonShort = '숫자의 오행이 중심 오행과 동일하여 공명합니다.';
-    else if (el === gen) reasonShort = '중심 오행을 돕는 상생 관계로 긍정적 영향이 기대됩니다.';
-    else if (el === over) reasonShort = '중심을 제어하는 상극 관계로 균형/제약 역할을 합니다.';
-    else reasonShort = '중심과 다른 오행으로 보완적이거나 변화점이 될 수 있습니다.';
+    if (el === domEl) reasonShort = '숫자의 오행이 중심 오행과 동일하여 강하게 공명합니다.';
+    else if (el === gen) reasonShort = '중심 오행을 돕는 상생 관계로 자연스럽게 힘을 북돋아 줍니다.';
+    else if (el === over) reasonShort = '중심을 제어하는 상극 관계로 균형을 잡아주거나 제약을 줍니다.';
+    else reasonShort = '중심과 다른 오행으로 보완적이거나 변화를 촉발할 수 있습니다.';
 
+    const poetic = `다섯의 리듬이 남긴 잔향이 이 자리에서 ${el}의 기운을 드러냅니다.`;
     return `
       <div style="display:flex;flex-direction:column;gap:8px;">
         <div style="display:flex;align-items:center;gap:12px;">
@@ -264,7 +264,7 @@ function buildReasons(mainNums, ctx){
         </div>
         <div style="color:#374151;font-size:14px;">${relationText}</div>
         <div style="color:#6b7280;font-size:13px;">${moveNote}</div>
-        <div class="reasonShort">이유: ${n} % 5 = ${r} → ${el} — ${reasonShort}</div>
+        <div class="reasonShort">이유: ${poetic} ${reasonShort}</div>
       </div>
     `;
   });
