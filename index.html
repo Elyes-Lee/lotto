@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>주역(팔괘/육효) 기반 로또 번호 생성기 (데모)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <h1>주역(팔괘/육효) 기반 로또 번호 생성기 (데모)</h1>
+    <p class="muted">
+      오락/컨셉용 예시입니다. 같은 입력값이면 같은 결과가 나오도록 “결정론적”으로 생성합니다.
+      당첨 확률을 높인다는 의미가 아닙니다.
+    </p>
+
+    <div class="grid">
+      <div class="card">
+        <label>생년월일</label>
+        <div class="date-input-group">
+          <div>
+            <select id="birthYear" required>
+              <option value="">년도</option>
+            </select>
+            <small>년</small>
+          </div>
+          <div>
+            <select id="birthMonth" required>
+              <option value="">월</option>
+            </select>
+            <small>월</small>
+          </div>
+          <div>
+            <select id="birthDay" required>
+              <option value="">일</option>
+            </select>
+            <small>일</small>
+          </div>
+        </div>
+        <div class="quick-input">
+          <input id="quickDateInput" type="text" placeholder="빠른 입력: YYYYMMDD (예: 19950315)" />
+        </div>
+
+        <div style="margin-top: 16px;">
+          <label for="birthTime">생시(선택)</label>
+          <div class="row">
+            <select id="birthHour">
+              <option value="">시간</option>
+            </select>
+            <select id="birthMinute">
+              <option value="">분</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="btn">주역 + 번호 생성</button>
+        <div id="msg" class="muted ok"></div>
+        <div id="err" class="err"></div>
+
+        <div class="hr"></div>
+        <div class="muted">
+          <div>공유/재현:</div>
+          <div>생성 시 URL에 <code class="inline">?d=YYYY-MM-DD&t=HH:MM</code> 형태로 반영됩니다.</div>
+          <div>브라우저가 Web Crypto(<code class="inline">crypto.subtle</code>)를 지원하지 않으면 간단 해시(FNV-1a)로 폴백합니다.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="sectionTitle">결과</div>
+        <div id="resultEmpty" class="muted">왼쪽에서 생년월일(필수)과 생시(선택)을 입력하세요.</div>
+
+        <div id="result" style="display:none;">
+          <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+            <span class="pill" id="pillSeed"></span>
+            <span class="pill" id="pillUpper"></span>
+            <span class="pill" id="pillLower"></span>
+            <span class="pill" id="pillDominant"></span>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="sectionTitle">로또 번호 (5세트)</div>
+          <div id="allLottoSets" style="display: grid; gap: 14px;"></div>
+
+          <div class="hr"></div>
+
+          <div class="hexWrap">
+            <div class="hex">
+              <div class="sectionTitle">본괘 — 지금의 에너지</div>
+              <div style="font-size: 13px; color: #4b5563; margin-bottom: 12px; line-height: 1.5;">
+                당신의 생년월일이 담은 <strong>현재의 흐름과 상황</strong>. 
+                이 괘는 지금 당신이 서 있는 자리, 가진 에너지, 
+                그리고 이 순간의 핵심 성질을 보여줍니다.
+              </div>
+              <div id="hexOriginal"></div>
+            </div>
+            <div class="hex">
+              <div class="sectionTitle">변화 괘 — 가능성의 방향</div>
+              <div style="font-size: 13px; color: #4b5563; margin-bottom: 12px; line-height: 1.5;">
+                변효(변하는 선)가 반전되어 나타나는 <strong>변화 후의 모습</strong>. 
+                본괘의 에너지가 흘러가며 무엇으로 변성할 수 있는지, 
+                당신의 에너지가 나아갈 수 있는 방향성을 제시합니다.
+              </div>
+              <div id="hexChanged"></div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="sectionTitle">당신의 숫자들 — 그리고 그 의미</div>
+          <div class="muted">
+            아래의 각 로또 번호는 당신의 생년월일이 담은 주역의 에너지를 풀어낸 것입니다.
+            <br><br>
+            <strong>당신의 본괘(지금의 상태)와 변화 괘(향하는 방향)는 5개 숫자로 표현됩니다.</strong>
+            <br>각 숫자는 당신의 에너지 지도 위에서 특별한 자리를 차지하고 있으며,
+            그것이 어떤 성질인지, 안정적인지 변화 중인지를 보여줍니다.
+          </div>
+          <ul id="reasons"></ul>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js" defer></script>
+</body>
+</html>

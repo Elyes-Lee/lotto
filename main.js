@@ -1,0 +1,417 @@
+// ===== 팔괘(Trigram) 정의 =====
+// bit pattern is bottom->top (3 bits): 111=乾, 000=坤 ...
+const TRIGRAMS = {
+  "111": { key:"qian",  name:"건(乾)", symbol:"☰", nature:"하늘", element:"금(金)" },
+  "110": { key:"dui",   name:"태(兌)", symbol:"☱", nature:"택(못/호수)", element:"금(金)" },
+  "101": { key:"li",    name:"리(離)", symbol:"☲", nature:"불", element:"화(火)" },
+  "100": { key:"zhen",  name:"진(震)", symbol:"☳", nature:"천둥", element:"목(木)" },
+  "011": { key:"xun",   name:"손(巽)", symbol:"☴", nature:"바람", element:"목(木)" },
+  "010": { key:"kan",   name:"감(坎)", symbol:"☵", nature:"물", element:"수(水)" },
+  "001": { key:"gen",   name:"간(艮)", symbol:"☶", nature:"산", element:"토(土)" },
+  "000": { key:"kun",   name:"곤(坤)", symbol:"☷", nature:"땅", element:"토(土)" },
+};
+
+// 숫자를 오행에 매핑(임의 규칙, 설명 생성용)
+// 1:목 2:화 3:토 4:금 0:수
+function numberElement(n){
+  const r = n % 5;
+  if (r === 1) return "목(木)";
+  if (r === 2) return "화(火)";
+  if (r === 3) return "토(土)";
+  if (r === 4) return "금(金)";
+  return "수(水)";
+}
+
+// 상생/상극 관계(간단 표기)
+const GENERATES = { "목(木)":"화(火)", "화(火)":"토(土)", "토(土)":"금(金)", "금(金)":"수(水)", "수(水)":"목(木)" };
+const OVERCOMES = { "목(木)":"토(土)", "토(土)":"수(水)", "수(水)":"화(火)", "화(火)":"금(金)", "금(金)":"목(木)" };
+
+// ===== 해시 유틸 =====
+async function sha256Bytes(str){
+  if (crypto?.subtle?.digest) {
+    const enc = new TextEncoder().encode(str);
+    const buf = await crypto.subtle.digest("SHA-256", enc);
+    return new Uint8Array(buf);
+  }
+  // 폴백: FNV-1a 32-bit를 반복해서 의사바이트 생성
+  const bytes = new Uint8Array(32);
+  let h = 0x811c9dc5;
+  for (let i=0;i<str.length;i++){
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  for (let i=0;i<32;i++){
+    h ^= (i + 0x9e3779b9) >>> 0;
+    h = Math.imul(h, 0x01000193) >>> 0;
+    bytes[i] = (h >>> ((i % 4) * 8)) & 0xff;
+  }
+  return bytes;
+}
+
+// ===== 주역(6효) 생성 =====
+// lines[0] = 1효(맨 아래), lines[5] = 6효(맨 위)
+function deriveLines(bytes){
+  const lines = [];
+  const moving = [];
+  for (let i=0;i<6;i++){
+    const b = bytes[i];
+    const isYang = (b & 1) === 1;          // 음/양
+    const isMoving = ((b >> 1) & 1) === 1; // 변효 여부
+    lines.push(isYang ? 1 : 0);
+    moving.push(isMoving);
+  }
+  // 변괘(지괘): 변효인 자리만 반전
+  const changed = lines.map((v, idx) => moving[idx] ? (v ? 0 : 1) : v);
+  return { lines, moving, changed };
+}
+
+function trigramFromLines(bottom3){
+  // bottom3 is [line1,line2,line3] each 0/1
+  const key = `${bottom3[0]}${bottom3[1]}${bottom3[2]}`;
+  return TRIGRAMS[key] || null;
+}
+
+function dominantElement(upper, lower, moving){
+  // 단순 규칙: 변효가 상괘(4~6효)에 더 많으면 상괘 오행, 아니면 하괘 오행
+  const upperMoving = (moving[3]?1:0)+(moving[4]?1:0)+(moving[5]?1:0);
+  const lowerMoving = (moving[0]?1:0)+(moving[1]?1:0)+(moving[2]?1:0);
+  if (upper.element === lower.element) return upper.element;
+  return (upperMoving >= lowerMoving) ? upper.element : lower.element;
+}
+
+// ===== 로또 번호 생성(1~45, 중복 제거) =====
+function pickUniqueNumbers(bytes, count, offset){
+  const out = [];
+  let p = offset;
+  // 충분히 뽑을 때까지(최악의 경우 대비해 안전장치)
+  let guard = 0;
+  while (out.length < count && guard < 4000){
+    const hi = bytes[p % bytes.length];
+    const lo = bytes[(p+1) % bytes.length];
+    p += 2;
+    const v = ((hi << 8) | lo) % 45 + 1;
+    if (!out.includes(v)) out.push(v);
+    guard++;
+  }
+  out.sort((a,b)=>a-b);
+  return out;
+}
+
+// ===== UI 렌더 =====
+function renderHex(targetEl, lines, moving){
+  // 표시: 6효(위에서 아래로 보여주되, 라벨은 6효->1효)
+  targetEl.innerHTML = "";
+  for (let visualIdx = 5; visualIdx >= 0; visualIdx--){
+    const eff = visualIdx + 1; // 효 번호
+    const isYang = lines[visualIdx] === 1;
+    const isMoving = moving ? !!moving[visualIdx] : false;
+
+    const row = document.createElement("div");
+    row.className = "lineRow";
+
+    const lbl = document.createElement("div");
+    lbl.className = "lineLabel";
+    lbl.textContent = `${eff}효`;
+
+    const bar = document.createElement("div");
+    bar.className = "lineBar " + (isYang ? "yang" : "yin");
+
+    if (isYang){
+      const seg = document.createElement("div");
+      seg.className = "seg";
+      bar.appendChild(seg);
+    } else {
+      const seg1 = document.createElement("div");
+      seg1.className = "seg";
+      const seg2 = document.createElement("div");
+      seg2.className = "seg";
+      bar.appendChild(seg1);
+      bar.appendChild(seg2);
+    }
+
+    const tag = document.createElement("div");
+    tag.className = "movingTag";
+    tag.textContent = isMoving ? "변효" : "고정";
+    tag.style.visibility = isMoving ? "visible" : "hidden";
+
+    row.appendChild(lbl);
+    row.appendChild(bar);
+    row.appendChild(tag);
+    targetEl.appendChild(row);
+  }
+}
+
+function getBallRange(n){
+  if (n >= 1 && n <= 10) return "1";
+  if (n >= 11 && n <= 20) return "2";
+  if (n >= 21 && n <= 30) return "3";
+  if (n >= 31 && n <= 40) return "4";
+  return "5";
+}
+
+function setBall(container, nums, cls){
+  container.innerHTML = "";
+  nums.forEach((n, idx)=>{
+    const d = document.createElement("div");
+    d.className = "ball " + (cls || "");
+    d.setAttribute("data-range", getBallRange(n));
+    d.style.animationDelay = (idx * 50) + "ms";
+    d.textContent = n;
+    container.appendChild(d);
+  });
+}
+
+function buildReasons(mainNums, ctx){
+  const { upper, lower, domEl, moving, lines } = ctx;
+  const moveIdx = moving.map((m,i)=>m ? (i+1) : null).filter(Boolean); // 1~6효
+  const moveText = moveIdx.length ? `${moveIdx.join(",")}효` : "없음";
+
+  return mainNums.map((n, i) => {
+    const el = numberElement(n);
+    const linePos = (n % 6) === 0 ? 6 : (n % 6); // 1~6
+    const isMoving = !!moving[linePos-1];
+    const yinYang = lines[linePos-1] === 1 ? "양(—)" : "음(– –)";
+
+    // 상생/상극 관계를 스토리로 변환
+    const gen = GENERATES[domEl];
+    const over = OVERCOMES[domEl];
+
+    let story = "";
+    if (el === domEl) {
+      story = `🎯 당신의 핵심 에너지 (${domEl}) — 가장 강력하게 공명하는 숫자입니다. 이 숫자는 당신의 본질적인 성질과 가장 깊이 연결되어 있습니다.`;
+    } else if (el === gen) {
+      story = `🌱 흐름의 자연스러움 (${domEl}→${gen}) — 당신의 중심 에너지가 자연스럽게 발전하고 커지는 방향입니다. 이 숫자와 함께하면 좋은 일들이 차례차례 펼쳐집니다.`;
+    } else if (el === over) {
+      story = `⚖️ 균형과 조화 (${domEl}⊣${over}) — 당신의 에너지를 견제하는 힘입니다. 나쁜 것만은 아닙니다. 이 숫자는 당신을 중심에 머물게 하고 안정시킵니다.`;
+    } else {
+      story = `🌀 우주의 배치 — 당신의 핵심 에너지와는 다른 방향의 숫자입니다. 새로운 관점을 제시하고, 예상치 못한 기회를 가져다줍니다.`;
+    }
+
+    const moveNote = isMoving
+      ? `[ ⚡ 변화의 포인트 ] ${linePos}효가 변하고 있습니다 → 이 숫자 영역에서 당신의 에너지가 현재 변성 중입니다.`
+      : `[ 🌿 안정의 자리 ] ${linePos}효는 고정되어 있습니다 → 이 에너지는 당신의 확고한 기초를 이루고 있습니다.`;
+
+    return `${i+1}번: <strong>${n}</strong> (${el})\n${story}\n${moveNote}`;
+  });
+}
+
+async function generate(){
+  const year = document.getElementById("birthYear").value;
+  const month = document.getElementById("birthMonth").value;
+  const day = document.getElementById("birthDay").value;
+  const hour = document.getElementById("birthHour").value;
+  const minute = document.getElementById("birthMinute").value;
+
+  const errEl = document.getElementById("err");
+  const msgEl = document.getElementById("msg");
+
+  errEl.textContent = "";
+  msgEl.textContent = "";
+
+  if (!year || !month || !day){
+    errEl.textContent = "생년월일은 필수입니다.";
+    return;
+  }
+
+  const birthDate = `${year}-${month}-${day}`;
+  const birthTime = (hour && minute) ? `${hour}:${minute}` : "";
+  
+  const seed = birthTime ? `${birthDate}T${birthTime}` : `${birthDate}`;
+  msgEl.textContent = `씨드: ${seed} (결정론적 생성)`;
+
+  // URL 반영 (공유/재현)
+  const usp = new URLSearchParams(location.search);
+  usp.set("d", birthDate);
+  if (birthTime) usp.set("t", birthTime); else usp.delete("t");
+  history.replaceState({}, "", `${location.pathname}?${usp.toString()}`);
+
+  const bytes = await sha256Bytes(seed);
+  const { lines, moving, changed } = deriveLines(bytes);
+
+  const lower = trigramFromLines([lines[0], lines[1], lines[2]]);
+  const upper = trigramFromLines([lines[3], lines[4], lines[5]]);
+  const domEl = dominantElement(upper, lower, moving);
+
+  // 5세트 랜덤 생성
+  const allSets = [];
+  for (let setIdx = 0; setIdx < 5; setIdx++) {
+    const nums = [];
+    while (nums.length < 5) {
+      const n = Math.floor(Math.random() * 45) + 1; // 1~45 랜덤
+      if (!nums.includes(n)) nums.push(n);
+    }
+    nums.sort((a, b) => a - b);
+    allSets.push(nums);
+  }
+
+  // UI 표시
+  document.getElementById("resultEmpty").style.display = "none";
+  document.getElementById("result").style.display = "block";
+
+  document.getElementById("pillSeed").textContent = `입력: ${seed}`;
+  document.getElementById("pillUpper").textContent = `상괘: ${upper.symbol} ${upper.name} · ${upper.nature} · ${upper.element}`;
+  document.getElementById("pillLower").textContent = `하괘: ${lower.symbol} ${lower.name} · ${lower.nature} · ${lower.element}`;
+  document.getElementById("pillDominant").textContent = `중심 오행(규칙): ${domEl}`;
+
+  // 5세트 표시
+  const setsContainer = document.getElementById("allLottoSets");
+  setsContainer.innerHTML = "";
+  allSets.forEach((nums, idx) => {
+    const setDiv = document.createElement("div");
+    setDiv.style.cssText = "padding: 12px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border-radius: 12px; border: 1px solid rgba(99, 102, 241, 0.2);";
+    
+    const textDiv = document.createElement("div");
+    textDiv.style.cssText = "font-weight: 700; font-size: 18px; color: #1f2937; margin-bottom: 10px;";
+    textDiv.textContent = `${idx + 1}번: ${nums.join(" - ")}`;
+    setDiv.appendChild(textDiv);
+    
+    const ballsDiv = document.createElement("div");
+    ballsDiv.className = "nums";
+    setBall(ballsDiv, nums, "");
+    setDiv.appendChild(ballsDiv);
+    
+    setsContainer.appendChild(setDiv);
+  });
+
+  renderHex(document.getElementById("hexOriginal"), lines, moving);
+  // 지괘는 "변효" 정보를 그대로 보여주면 혼동되니, 라벨만 고정 표시
+  renderHex(document.getElementById("hexChanged"), changed, moving);
+
+  const mainNums = allSets[0]; // 첫 번째 세트로 설명 표시
+  const reasons = buildReasons(mainNums, { upper, lower, domEl, moving, lines });
+  const ul = document.getElementById("reasons");
+  ul.innerHTML = "";
+  reasons.forEach(r=>{
+    const li = document.createElement("li");
+    // HTML 포맷팅: 줄 바꿈과 강조 처리
+    li.innerHTML = r.replace(/\n/g, "<br>").replace(/\[ ([^\]]+) \]/g, "<strong style='color: #6366f1;'>[ $1 ]</strong>");
+    ul.appendChild(li);
+  });
+}
+
+// 드롭다운 초기화
+function initializeDateSelects(){
+  const yearSelect = document.getElementById("birthYear");
+  const monthSelect = document.getElementById("birthMonth");
+  const daySelect = document.getElementById("birthDay");
+  const hourSelect = document.getElementById("birthHour");
+  const minuteSelect = document.getElementById("birthMinute");
+
+  // 년도: 1900~2050
+  for (let y = 2050; y >= 1900; y--){
+    const opt = document.createElement("option");
+    opt.value = String(y);
+    opt.textContent = y;
+    yearSelect.appendChild(opt);
+  }
+
+  // 월: 1~12 (패딩: 01~12)
+  for (let m = 1; m <= 12; m++){
+    const opt = document.createElement("option");
+    opt.value = String(m).padStart(2, "0");
+    opt.textContent = `${m}월`;
+    monthSelect.appendChild(opt);
+  }
+
+  // 일: 1~31 (패딩: 01~31)
+  for (let d = 1; d <= 31; d++){
+    const opt = document.createElement("option");
+    opt.value = String(d).padStart(2, "0");
+    opt.textContent = `${d}일`;
+    daySelect.appendChild(opt);
+  }
+
+  // 시간: 0~23 (패딩: 00~23)
+  for (let h = 0; h < 24; h++){
+    const opt = document.createElement("option");
+    opt.value = String(h).padStart(2, "0");
+    opt.textContent = `${h.toString().padStart(2,"0")}시`;
+    hourSelect.appendChild(opt);
+  }
+
+  // 분: 0, 30분 단위 (패딩: 00, 30)
+  for (let m = 0; m < 60; m += 30){
+    const opt = document.createElement("option");
+    opt.value = String(m).padStart(2, "0");
+    opt.textContent = `${m.toString().padStart(2,"0")}분`;
+    minuteSelect.appendChild(opt);
+  }
+}
+
+// yyyymmdd 빠른 입력 처리
+function handleQuickDateInput(e){
+  const input = e.target.value;
+  const digitsOnly = input.replace(/[^0-9]/g, "");
+  
+  // 표시용 포매팅
+  let display = "";
+  if (digitsOnly.length > 0 && digitsOnly.length <= 4) {
+    display = digitsOnly;
+  } else if (digitsOnly.length > 4 && digitsOnly.length <= 6) {
+    display = digitsOnly.substring(0, 4) + "-" + digitsOnly.substring(4);
+  } else if (digitsOnly.length > 6) {
+    display = digitsOnly.substring(0, 4) + "-" + digitsOnly.substring(4, 6) + "-" + digitsOnly.substring(6, 8);
+  }
+  e.target.value = display;
+  
+  // 정확히 8자리일 때만 처리
+  if (digitsOnly.length === 8) {
+    const year = digitsOnly.substring(0, 4);
+    const month = digitsOnly.substring(4, 6);
+    const day = digitsOnly.substring(6, 8);
+    
+    const y = parseInt(year, 10);
+    const m = parseInt(month, 10);
+    const d = parseInt(day, 10);
+    
+    // 유효성 검증
+    if (y >= 1900 && y <= 2050 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      // 드롭다운 설정 (값이 패딩된 문자열이므로 패딩 상태로 설정)
+      document.getElementById("birthYear").value = year;
+      document.getElementById("birthMonth").value = month;
+      document.getElementById("birthDay").value = day;
+      
+      // 3초 후 입력창 초기화
+      setTimeout(() => {
+        e.target.value = "";
+      }, 3000);
+    } else {
+      // 유효하지 않은 날짜
+      e.target.style.borderColor = "#ef4444";
+      e.target.style.background = "#fef2f2";
+      setTimeout(() => {
+        e.target.style.borderColor = "#e5e7eb";
+        e.target.style.background = "#f9fafb";
+      }, 2000);
+    }
+  }
+}
+
+// 초기값(쿼리에서 복원)
+function hydrateFromQuery(){
+  const usp = new URLSearchParams(location.search);
+  const d = usp.get("d");
+  const t = usp.get("t");
+  if (d){
+    const parts = d.split("-");
+    if (parts.length === 3){
+      document.getElementById("birthYear").value = parts[0];
+      document.getElementById("birthMonth").value = parts[1];
+      document.getElementById("birthDay").value = parts[2];
+    }
+  }
+  if (t){
+    const parts = t.split(":");
+    if (parts.length === 2){
+      document.getElementById("birthHour").value = parts[0];
+      document.getElementById("birthMinute").value = parts[1];
+    }
+  }
+  if (d) generate();
+}
+
+// 초기화
+initializeDateSelects();
+document.getElementById("btn").addEventListener("click", generate);
+document.getElementById("quickDateInput").addEventListener("input", handleQuickDateInput);
+hydrateFromQuery();
