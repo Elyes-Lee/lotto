@@ -116,6 +116,19 @@ button:active {
   font-size: 13px;
   color: #4b5563;
 }
+
+/* Intro / lead 스타일: 가독성 향상용 박스형 문단 */
+.lead {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #0f172a;
+  background: rgba(255,255,255,0.90);
+  padding: 12px 16px;
+  border-radius: 12px;
+  max-width: 980px;
+  box-shadow: 0 8px 20px rgba(2,6,23,0.06);
+  margin-bottom: 18px;
+}
 .err { 
   color: #dc2626; 
   font-size: 13px; 
