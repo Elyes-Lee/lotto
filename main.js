@@ -252,7 +252,12 @@ function buildReasons(mainNums, ctx){
     else if (el === over) reasonShort = '중심을 제어하는 상극 관계로 균형을 잡아주거나 제약을 줍니다.';
     else reasonShort = '중심과 다른 오행으로 보완적이거나 변화를 촉발할 수 있습니다.';
 
-    const poetic = `다섯의 리듬이 남긴 잔향이 이 자리에서 ${el}의 기운을 드러냅니다.`;
+    // 내부적으로는 다섯 갈래의 순환 위치를 사용하지만, 사용자에게는
+    // 더 이해하기 쉬운 설명으로 보여줍니다 (수식 노출 없음).
+    const posIndex = ((n - 1) % 5) + 1; // 내부 계산만 사용
+    const ordinals = ["첫째", "둘째", "셋째", "넷째", "다섯째"];
+    const positionDesc = ordinals[(posIndex - 1) % ordinals.length];
+    const poetic = `${positionDesc} 자리에 놓인 숫자라, 전통적으로 이 자리는 ${el}의 성질을 띱니다.`.replace('띱니다', '닙니다');
     return `
       <div style="display:flex;flex-direction:column;gap:8px;">
         <div style="display:flex;align-items:center;gap:12px;">
